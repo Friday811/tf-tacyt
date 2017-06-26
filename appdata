@@ -1,12 +1,16 @@
 # Reader ignores lines starting with #
 # Put categories to be read and used for training in here
-# Categories pulled from tacyt responde JSON
+# Categories pulled from tacyt response JSON
 # Put # in front of categories to ignore (list data, XML data)
-marketLinks
+#
+# Currently set to ignore all categories that are lists,
+# only uses categories that are strings or ints.
+#
+#marketLinks
 certificateValidFrom
 oneStarRatingCont
 nActivityAlias
-links
+#links
 oldestDateFile
 manifestHeaderCreatedBy
 certificateSubjectCommonName
@@ -42,7 +46,7 @@ certificateFingerprint
 nProviders
 accuracy
 recentChanges
-permissionName
+#permissionName
 categoryName
 numDownloads
 certificateAutoSigned
@@ -57,7 +61,7 @@ packageNameOrigin
 key
 certificateValidityGapSeconds
 threeStarRatingCont
-emails
+#emails
 origin
 md5
 signatureFileLastUpdateDate

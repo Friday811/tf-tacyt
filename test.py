@@ -30,7 +30,9 @@ def getCategoriesFromFile(fileName):
 # learn from, return a list of dictionaries for each app with
 # any key not in the list of categories removed.
 # If categories are not specified, return all.
-def getFormattedApplicationsFromResults(results, categories=[]):
+# If a category is not found, it will be instantiated with the notFound var.
+# If notFound is None, no replacement will be made
+def getFormattedApplicationsFromResults(results, categories=[], notFound=None):
     apps = []
     categoriesLen = len(categories)
     for app in results['result']['applications']:
@@ -42,6 +44,12 @@ def getFormattedApplicationsFromResults(results, categories=[]):
             apps.append(app)
         else:
             apps.append(app)
+    if notFound is not None:
+        for app in apps:
+            appKeys = app.keys()
+            for cat in categories:
+                if cat not in appKeys:
+                    app[cat] = notFound
     return apps
 
 
@@ -71,7 +79,7 @@ def testSearch(api, categories):
     # print(json.dumps(test_search.get_data(), indent=2))
     # print(json.dumps(test_search.get_error(), indent=2))
     formattedResults = getFormattedApplicationsFromResults(
-        test_search.get_data(), categories)
+        test_search.get_data(), categories=categories, notFound=-1)
     formattedResults = getIntFilteredAppDict(formattedResults)
     print(json.dumps(formattedResults, indent=2))
 

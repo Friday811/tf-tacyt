@@ -5,6 +5,7 @@ import os
 from tacyt import TacytApp as ta
 import json
 import tflearn
+import numpy as np
 
 VERBOSE = True
 APPDATAFILE = 'appdata'
@@ -60,18 +61,31 @@ def getIntFilteredAppDict(apps, setTo=None):
     if setTo is None:
         for app in apps:
             for key in app.keys():
-                if type(app[key]) == int or type(app[key]) == float:
-                    pass
-                else:
+                if not (type(app[key]) == int or type(app[key]) == float):
                     app.pop(key, None)
     else:
         for app in apps:
             for key in app.keys():
-                if type(app[key]) == int or type(app[key]) == float:
-                    pass
-                else:
+                if not (type(app[key]) == int or type(app[key]) == float):
                     app[key] = setTo
     return apps
+
+
+# Create a training data set from a list of app dicts
+# Returns data, a list of lists sorted the same for each app
+# and the labels for the categories [malicious, benign]
+def createTrainingSet(apps, malicious=False):
+    data = []
+    if malicious:
+        labels = np.repeat(np.array([[1., 0.]]), [len(apps)], axis=0)
+    else:
+        labels = np.repeat(np.array([[0., 1.]], [len(apps)], axis=0))
+    for app in apps:
+        appList = []
+        for key in sorted(app):
+            appList.append(app[key])
+        data.append(appList)
+    return data, labels
 
 
 def testSearch(api, categories):

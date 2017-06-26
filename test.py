@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 from tacyt import TacytApp as ta
 import json
+import tflearn
 
 VERBOSE = True
 APPDATAFILE = 'appdata'
@@ -44,13 +45,35 @@ def getFormattedApplicationsFromResults(results, categories=[]):
     return apps
 
 
+# Given a list of dictionaries corresponding to apps,
+# remove all elements from those dictionaries that are not ints
+# or set them to a specific int
+def getIntFilteredAppDict(apps, setTo=None):
+    if setTo is None:
+        for app in apps:
+            for key in app.keys():
+                if type(app[key]) == int or type(app[key]) == float:
+                    pass
+                else:
+                    app.pop(key, None)
+    else:
+        for app in apps:
+            for key in app.keys():
+                if type(app[key]) == int or type(app[key]) == float:
+                    pass
+                else:
+                    app[key] = setTo
+    return apps
+
+
 def testSearch(api, categories):
     test_search = api.search_apps("title:\"5G Speed For Android\"")
     # print(json.dumps(test_search.get_data(), indent=2))
     # print(json.dumps(test_search.get_error(), indent=2))
-    print(json.dumps(
-        getFormattedApplicationsFromResults(test_search.get_data(),
-                                            categories), indent=2))
+    formattedResults = getFormattedApplicationsFromResults(
+        test_search.get_data(), categories)
+    formattedResults = getIntFilteredAppDict(formattedResults)
+    print(json.dumps(formattedResults, indent=2))
 
 
 def main():

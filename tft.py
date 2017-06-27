@@ -320,10 +320,9 @@ def testSearch(api, categories):
             vPrint("Test set #" + str(i+1) + " incorrectly marked safe.")
             iS = iS + 1
         i = i + 1
-    print("Correctly identified malicious: " + str(cM))
-    print("Malicious apps missed: " + str(iS))
-    print("False positives: " + str(fP))
-    print("Correctly identified safe: " + str(cS))
+    print("Correctly identified malicious: " + str(cM) + "/" + str(cM + iS))
+    print("False positives: " + str(fP) + "/" + str(fP+cS))
+
 
 def main():
     vPrint("Verbose mode.")

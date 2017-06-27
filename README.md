@@ -2,8 +2,12 @@
 
 
 #### Requirements ####
- - Python 2.7
+ - Python 2.7, Tacyt API isn't avaiable in 3.x
  - Install requirements from requirements.txt 
+ - If using the default test script, create a models and pickles folder 
+ - If using the default test script, set VERBOSE as desired and  RESET and TRAIN variables to True
+ - If this is your first time running the script, comment out the model.load() line in the TRAIN section of the test script. You can uncomment it after creating an initial model.
+ - You will need a [Tacyt](https://tacyt.elevenpaths.com) API key and invitation code.
 
 #### API Keys ####
 API keys should be put in a file called keys.api with format:

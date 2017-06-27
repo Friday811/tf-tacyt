@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# TensorFlow-Tacyt
 
 from __future__ import print_function
 from __future__ import division
@@ -11,7 +12,7 @@ import random
 import hashlib
 import pickle
 
-VERBOSE = True
+VERBOSE = False
 APPDATAFILE = 'appdata'
 
 
@@ -203,6 +204,7 @@ def randomizeData(data, labels):
 # This function is a scratchpad and a total mess.
 def testSearch(api, categories):
     RESET = False
+    TRAIN = False
     if RESET:
         # Create the list to hold data and NumPy array to hold labels
         data = []
@@ -272,14 +274,14 @@ def testSearch(api, categories):
         testSetLabels.append(labels[j])
         labels = np.delete(labels, j, axis=0)
     # Print for debug.
-    print(data)
-    print(type(data))
+    vPrint(data)
+    vPrint(type(data))
     for i in data:
-        print(str(len(i)) + ' : ' + str(i))
-    print(labels)
-    print(type(labels))
-    print(labels.shape)
-    print(labels.dtype)
+        vPrint(str(len(i)) + ' : ' + str(i))
+    vPrint(labels)
+    vPrint(type(labels))
+    vPrint(labels.shape)
+    vPrint(labels.dtype)
     # Build neural network
     net = tflearn.input_data(shape=[None, len(data[0])])
     net = tflearn.fully_connected(net, 32)
@@ -289,31 +291,51 @@ def testSearch(api, categories):
     net = tflearn.regression(net, optimizer=adam)
     # Define model.
     model = tflearn.DNN(net, tensorboard_verbose=3)
-    # Start training.
-    model.fit(data, labels, n_epoch=1000, batch_size=32, show_metric=True)
+    if TRAIN:
+        model.load("models/XJ_GGF_model.tflearn")
+        # Start training.
+        model.fit(data, labels, n_epoch=1000, batch_size=32, show_metric=True)
+        # Save the model
+        model.save("models/XJ_GGF_model.tflearn")
+    else:
+        model.load("models/XJ_GGF_model.tflearn")
     # Test the models predictions
     pred = model.predict(testSet)
+    fP = 0
+    cM = 0
+    cS = 0
+    iS = 0
     i = 0
     for el in pred:
-        print("Test set #" + str(i+1))
-        print("Malicious: " + str(pred[i][0]) + "/" + str(testSetLabels[i][0]))
-        print("Safe: " + str(pred[i][1]) + "/" + str(testSetLabels[i][1]))
+        if (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
+            vPrint("Test set #" + str(i+1) + " correctly identified malicious.")
+            cM = cM + 1
+        elif (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
+            vPrint("Test set #" + str(i+1) + " false positively identified malicious.")
+            fP = fP + 1
+        elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
+            vPrint("Test set #" + str(i+1) + " correctly identified safe.")
+            cS = cS + 1
+        elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
+            vPrint("Test set #" + str(i+1) + " incorrectly marked safe.")
+            iS = iS + 1
         i = i + 1
-
+    print("Correctly identified malicious: " + str(cM))
+    print("Malicious apps missed: " + str(iS))
+    print("False positives: " + str(fP))
+    print("Correctly identified safe: " + str(cS))
 
 def main():
-    if VERBOSE:
-        print("Verbose mode.")
+    vPrint("Verbose mode.")
     keys = open('keys.api')
     API_ID = keys.readline().rstrip(os.linesep)[7:]
     SECRET = keys.readline().rstrip(os.linesep)[7:]
     keys.close()
     categories = getCategoriesFromFile(APPDATAFILE)
-    if VERBOSE:
-        print("API_ID: " + API_ID)
-        print("SECRET: " + SECRET)
-        print("Categories: ")
-        print(categories)
+    vPrint("API_ID: " + API_ID)
+    vPrint("SECRET: " + SECRET)
+    vPrint("Categories: ")
+    vPrint(categories)
     api = ta.TacytApp(API_ID, SECRET)
     testSearch(api, categories)
 

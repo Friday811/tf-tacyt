@@ -3,3 +3,6 @@
 
 # Compiled
 *.pyc
+
+# Pickle files
+*.pickle

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+from __future__ import division
 import os
 from tacyt import TacytApp as ta
 import json
@@ -8,6 +9,7 @@ import tflearn
 import numpy as np
 import random
 import hashlib
+import pickle
 
 VERBOSE = True
 APPDATAFILE = 'appdata'
@@ -114,7 +116,7 @@ def normalizeByApp(apps, nValue=1.0):
         maxValue = max(app)
         maxValue = app[maxValue]
         for key in app:
-            app[key] = (app[key] / maxValue) * nValue
+            app[key] = (app[key] / float(maxValue)) * nValue
     return apps
 
 
@@ -129,10 +131,27 @@ def normalizeByCategory(apps, nValue=1.0):
                 maxValue = app[key]
         # Normalize
         for app in apps:
-            app[key] = (app[key] / maxValue) * nValue
+            app[key] = (app[key] / float(maxValue)) * nValue
         # Reset max value
         maxValue = 0
     return apps
+
+
+def normalizeDataByCategory(data, nValue=100.0):
+    maxValue = 0
+    for i in range(len(data[0])):
+        for app in data:
+            if app[i] > maxValue:
+                maxValue = app[i]
+                if VERBOSE: print("Staged max: " + str(maxValue))
+        # Normalize
+        if VERBOSE: print("Max value: " + str(maxValue))
+        for app in data:
+            app[i] = (app[i] / float(maxValue)) * nValue
+            if VERBOSE:
+                print("New normal: " + str(app[i]))
+        maxValue = 0
+    return data
 
 
 # Search for 1000 entries for the given string and format it with
@@ -148,49 +167,67 @@ def maxSearch(api, searchString='', categories=[]):
     return results
 
 
+# Randomize data and labels, very important for training if you
+# build your data sets per category.
+def randomizeData(data, labels):
+    a = []
+    b = []
+    combined = list(zip(data, labels))
+    random.shuffle(combined)
+    a[:], b[:] = zip(*combined)
+    b = np.array(b)
+    return a, b
+
+
 # This function is a scratchpad and a total mess.
 def testSearch(api, categories):
-    test_search = maxSearch(api, searchString="certificateValidityGapRoundedYears:\"* - 5\"", categories=categories)
-    test_search_mal = maxSearch(api, searchString="certificateValidityGapRoundedYears:\"10 - *\"", categories=categories)
-    formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
-    formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
-    formattedResults = normalizeByCategory(formattedResults)
-    formattedResultsMal = normalizeByCategory(formattedResultsMal)
+    #test_search = maxSearch(api, searchString="certificateValidityGapRoundedYears:\"* - 5\"", categories=categories)
+    #test_search_mal = maxSearch(api, searchString="certificateValidityGapRoundedYears:\"10 - *\"", categories=categories)
+    #formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
+    #formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
+    # formattedResults = normalizeByCategory(formattedResults)
+    # formattedResultsMal = normalizeByCategory(formattedResultsMal)
     # print(json.dumps(formattedResults, indent=2))
-    data, labels = createTrainingSet(formattedResults, malicious=False)
-    data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
-    labels = np.append(labels, labels_mal, axis=0)
-    data.extend(data_mal)
-    #print(data)
-    #print(type(data))
-    #for i in data:
-    #    print(str(len(i)) + ' : ' + str(i))
-    #print(labels)
-    #print(type(labels))
-    #print(labels.shape)
-    #print(labels.dtype)
+    #data, labels = createTrainingSet(formattedResults, malicious=False)
+    #data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
+    #labels = np.append(labels, labels_mal, axis=0)
+    #data.extend(data_mal)
+    #pickle.dump(data, open("data.pickle", "wb"))
+    #pickle.dump(labels, open("labels.pickle", "wb"))
+    data = pickle.load(open("data.pickle", "rb"))
+    labels = pickle.load(open("labels.pickle", "rb"))
+    data, labels = randomizeData(data, labels)
+    data = normalizeDataByCategory(data)
+    print(data)
+    print(type(data))
+    for i in data:
+        print(str(len(i)) + ' : ' + str(i))
+    print(labels)
+    print(type(labels))
+    print(labels.shape)
+    print(labels.dtype)
     # Build neural network
     net = tflearn.input_data(shape=[None, len(data[0])])
     net = tflearn.fully_connected(net, 32)
     net = tflearn.fully_connected(net, 32)
-    net = tflearn.fully_connected(net, 32)
-    net = tflearn.fully_connected(net, 32)
     net = tflearn.fully_connected(net, 2, activation='softmax')
-    adam = tflearn.optimizers.Adam(learning_rate=0.0000001)
+    adam = tflearn.optimizers.Adam(learning_rate=0.01)
     net = tflearn.regression(net, optimizer=adam)
     # Define model.
-    model = tflearn.DNN(net)
+    model = tflearn.DNN(net, tensorboard_verbose=3)
     # Start training.
-    model.fit(data, labels, n_epoch=100, batch_size=16, show_metric=True)
-    rand_game = data[random.randrange(0, 99, 1)]
-    rand_av = data_mal[random.randrange(0, len(data_mal), 1)]
-    pred = model.predict([rand_game, rand_av])
-    print(rand_game)
-    print("*Random game (nonmal) pred: ", pred[0][1])
-    print("Random game (mal) pred: ", pred[0][0])
-    print(rand_av)
-    print("Random av (nonmal pred: ", pred[1][1])
-    print("*Random av (mal) pred: ", pred[1][0])
+    model.fit(data, labels, n_epoch=100, batch_size=32, show_metric=True)
+    rand = []
+    for i in range(10):
+        rand.append(data[random.randrange(0, len(data), 1)])
+
+    pred = model.predict(rand)
+    i = 0
+    for el in pred:
+        print(rand[i])
+        print("Random (small) pred: ", pred[i][1])
+        print("Random (large) pred: ", pred[i][0])
+        i = i + 1
 
 
 def main():

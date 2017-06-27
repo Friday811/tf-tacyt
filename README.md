@@ -21,6 +21,8 @@ The script was trained against a list of known safe apps taken from Google, Game
 A list of malicious apps (available in maliciousapps/) was used to create the malicious application data.
 A subset of good and malicious apps was removed and used to validate the model.
 
+Multiple runs and validations average around a 75% detection rate of malicious applications.
+
 ##### Example Results #####
 ```
 linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py

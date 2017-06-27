@@ -184,23 +184,31 @@ def randomizeData(data, labels):
 
 # This function is a scratchpad and a total mess.
 def testSearch(api, categories):
-    test_search = maxSearch(api, searchString="developerName:\"Google Inc.\"", categories=categories)
-    test_search_mal = maxSearch(api, searchString="developerName:\"Gameloft\"", categories=categories)
-    formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
-    formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
-    formattedResults = normalizeByCategory(formattedResults)
-    formattedResultsMal = normalizeByCategory(formattedResultsMal)
+    #test_search = maxSearch(api, searchString="developerName:\"Google Inc.\"", categories=categories)
+    #test_search_mal = maxSearch(api, searchString="developerName:\"Gameloft\"", categories=categories)
+    #formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
+    #formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
+    #formattedResults = normalizeByCategory(formattedResults)
+    #formattedResultsMal = normalizeByCategory(formattedResultsMal)
     # print(json.dumps(formattedResults, indent=2))
-    data, labels = createTrainingSet(formattedResults, malicious=False)
-    data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
-    labels = np.append(labels, labels_mal, axis=0)
-    data.extend(data_mal)
-    pickle.dump(data, open("data.pickle", "wb"))
-    pickle.dump(labels, open("labels.pickle", "wb"))
-    #data = pickle.load(open("data.pickle", "rb"))
-    #labels = pickle.load(open("labels.pickle", "rb"))
+    #data, labels = createTrainingSet(formattedResults, malicious=False)
+    #data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
+    #labels = np.append(labels, labels_mal, axis=0)
+    #data.extend(data_mal)
+    #pickle.dump(data, open("data.pickle", "wb"))
+    #pickle.dump(labels, open("labels.pickle", "wb"))
+    data = pickle.load(open("data.pickle", "rb"))
+    labels = pickle.load(open("labels.pickle", "rb"))
     data, labels = randomizeData(data, labels)
     data = normalizeDataByCategory(data)
+    # Remove random testing set
+    testSet = []
+    testSetLabels = []
+    for i in range(10):
+        j = random.randrange(0, len(data), 1)
+        testSet.append(data.pop(j))
+        testSetLabels.append(labels[j])
+        labels = np.delete(labels, j, axis=0)
     print(data)
     print(type(data))
     for i in data:
@@ -219,21 +227,13 @@ def testSearch(api, categories):
     # Define model.
     model = tflearn.DNN(net, tensorboard_verbose=3)
     # Start training.
-    model.fit(data, labels, n_epoch=100, batch_size=32, show_metric=True)
-    rand = []
-    r_label = []
-    for i in range(10):
-        j = random.randrange(0, len(data), 1)
-        rand.append(data[j])
-        r_label.append(labels[j])
-
-    pred = model.predict(rand)
+    model.fit(data, labels, n_epoch=10, batch_size=32, show_metric=True)
+    pred = model.predict(testSet)
     i = 0
     for el in pred:
-        print(rand[i])
-        print(r_label[i])
-        print("Random (Gameloft) pred: ", pred[i][0])
-        print("Random (Google) pred: ", pred[i][1])
+        print("Test set #" + str(i+1))
+        print("Random (Gameloft) pred: " + str(pred[i][0]) + "/" + str(testSetLabels[i][0]))
+        print("Random (Google) pred: " + str(pred[i][1]) + "/" + str(testSetLabels[i][1]))
         i = i + 1
 
 

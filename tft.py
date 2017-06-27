@@ -15,6 +15,13 @@ VERBOSE = True
 APPDATAFILE = 'appdata'
 
 
+# Use as shorthand for printing informational/debug
+# stuff, will only print when VERBOSE = True
+def vPrint(message):
+    if VERBOSE:
+        print(message)
+
+
 # Get the categories to learn from the given file and return it.
 # This allows you to easily select which criteria will be used
 # to learn and search.
@@ -58,11 +65,16 @@ def getFormattedApplicationsFromResults(results, categories=[], notFound=None):
     return apps
 
 
+# Takes the strings in app descriptions and hashes them to unique
+# integer values. Should be normalized after. Usefullness will
+# depend on the model you use.
 def hashAppStrings(apps):
     for app in apps:
         for key in app.keys():
             if not (type(app[key]) == int or type(app[key]) == float):
-                app[key] = int(hashlib.md5(app[key].encode('utf-8')).hexdigest(), 16)
+                app[key] = int(
+                    hashlib.md5(app[key].encode('utf-8')).hexdigest(),
+                    16)
     return apps
 
 
@@ -115,7 +127,8 @@ def normalizeByApp(apps, nValue=1.0):
     for app in apps:
         maxValue = max(app)
         maxValue = app[maxValue]
-        if maxValue == 0: maxValue = 1
+        if maxValue == 0:
+            maxValue = 1
         for key in app:
             app[key] = (app[key] / float(maxValue)) * nValue
     return apps
@@ -131,7 +144,8 @@ def normalizeByCategory(apps, nValue=1.0):
             if app[key] > maxValue:
                 maxValue = app[key]
         # Normalize
-        if maxValue == 0: maxValue = 1
+        if maxValue == 0:
+            maxValue = 1
         for app in apps:
             app[key] = (app[key] / float(maxValue)) * nValue
         # Reset max value
@@ -139,20 +153,22 @@ def normalizeByCategory(apps, nValue=1.0):
     return apps
 
 
+# Same as the normalizeByCategory function, except for operating
+# on the data list of lists, instead of the apps list of dicts
 def normalizeDataByCategory(data, nValue=100.0):
     maxValue = 0
     for i in range(len(data[0])):
         for app in data:
             if app[i] > maxValue:
                 maxValue = app[i]
-                if VERBOSE: print("Staged max: " + str(maxValue))
+                vPrint("Staged max: " + str(maxValue))
         # Normalize
-        if VERBOSE: print("Max value: " + str(maxValue))
-        if maxValue == 0: maxValue = 1
+        vPrint("Max value: " + str(maxValue))
+        if maxValue == 0:
+            maxValue = 1
         for app in data:
             app[i] = (app[i] / float(maxValue)) * nValue
-            if VERBOSE:
-                print("New normal: " + str(app[i]))
+            vPrint("New normal: " + str(app[i]))
         maxValue = 0
     return data
 
@@ -162,10 +178,12 @@ def normalizeDataByCategory(data, nValue=100.0):
 def maxSearch(api, searchString='', categories=[]):
     results = []
     for i in range(10):
-        if VERBOSE:
-            print("Searching for " + searchString + " page " + str(i+1))
+        vPrint("Searching for " + searchString + " page " + str(i+1))
         search = api.search_apps(searchString, maxResults=100, numberPage=i+1)
-        search = getFormattedApplicationsFromResults(search.get_data(), categories=categories, notFound=-1)
+        search = getFormattedApplicationsFromResults(
+            search.get_data(),
+            categories=categories,
+            notFound=-1)
         results.extend(search)
     return results
 
@@ -184,31 +202,76 @@ def randomizeData(data, labels):
 
 # This function is a scratchpad and a total mess.
 def testSearch(api, categories):
-    #test_search = maxSearch(api, searchString="developerName:\"Google Inc.\"", categories=categories)
-    #test_search_mal = maxSearch(api, searchString="developerName:\"Gameloft\"", categories=categories)
-    #formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
-    #formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
-    #formattedResults = normalizeByCategory(formattedResults)
-    #formattedResultsMal = normalizeByCategory(formattedResultsMal)
-    # print(json.dumps(formattedResults, indent=2))
-    #data, labels = createTrainingSet(formattedResults, malicious=False)
-    #data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
-    #labels = np.append(labels, labels_mal, axis=0)
-    #data.extend(data_mal)
-    #pickle.dump(data, open("data.pickle", "wb"))
-    #pickle.dump(labels, open("labels.pickle", "wb"))
-    data = pickle.load(open("data.pickle", "rb"))
-    labels = pickle.load(open("labels.pickle", "rb"))
+    RESET = False
+    if RESET:
+        # Create the list to hold data and NumPy array to hold labels
+        data = []
+        labels = -1  # instantiate on first use //yesitsahack
+        # Get results for malicious apps and read them into data and labels
+        with open("maliciousapps/XavierApps.txt") as f:
+            content = f.readlines()
+        content = [x.rstrip('\r\n') for x in content]
+        for pName in content:
+            search = maxSearch(api, searchString=("packageName:" + pName),
+                               categories=categories)
+            search = getIntFilteredAppDict(search, setTo=-1)
+            sData, sLabel = createTrainingSet(search, malicious=True)
+            data.extend(sData)
+            vPrint(str(labels))
+            vPrint(str(sLabel))
+            if type(labels) is int:
+                labels = sLabel
+            else:
+                labels = np.append(labels, sLabel, axis=0)
+        with open("maliciousapps/JudyApps.txt") as f:
+            content = f.readlines()
+        content = [x.rstrip('\r\n') for x in content]
+        for pName in content:
+            search = maxSearch(api, searchString=("packageName:" + pName),
+                               categories=categories)
+            search = getIntFilteredAppDict(search, setTo=-1)
+            sData, sLabel = createTrainingSet(search, malicious=True)
+            data.extend(sData)
+            labels = np.append(labels, sLabel, axis=0)
+        # Get known good apps and read them in to the corpus
+        search = maxSearch(api, searchString="developerName:\"Google Inc.\"",
+                           categories=categories)
+        search = getIntFilteredAppDict(search, setTo=-1)
+        sData, sLabel = createTrainingSet(search, malicious=False)
+        data.extend(sData)
+        labels = np.append(labels, sLabel, axis=0)
+        search = maxSearch(api, searchString="developerName:\"Gameloft\"",
+                           categories=categories)
+        search = getIntFilteredAppDict(search, setTo=-1)
+        sData, sLabel = createTrainingSet(search, malicious=False)
+        data.extend(sData)
+        labels = np.append(labels, sLabel, axis=0)
+        search = maxSearch(api, searchString="developerName:\"Facebook\"",
+                           categories=categories)
+        search = getIntFilteredAppDict(search, setTo=-1)
+        sData, sLabel = createTrainingSet(search, malicious=False)
+        data.extend(sData)
+        labels = np.append(labels, sLabel, axis=0)
+        # Pickle it to use later because searching takes forever.
+        pickle.dump(data, open("pickles/corpus_data_XJ.pickle", "wb"))
+        pickle.dump(labels, open("pickles/corpus_labels_XJ.pickle", "wb"))
+    else:
+        data = pickle.load(open("pickles/corpus_data_XJ.pickle", "rb"))
+        labels = pickle.load(open("pickles/corpus_labels_XJ.pickle", "rb"))
+    # Randomize the order, important for training
     data, labels = randomizeData(data, labels)
+    # Normalize the data by category, since not one category should weigh
+    # more than any other category, normalizing is important.
     data = normalizeDataByCategory(data)
     # Remove random testing set
     testSet = []
     testSetLabels = []
-    for i in range(10):
+    for i in range(100):
         j = random.randrange(0, len(data), 1)
         testSet.append(data.pop(j))
         testSetLabels.append(labels[j])
         labels = np.delete(labels, j, axis=0)
+    # Print for debug.
     print(data)
     print(type(data))
     for i in data:
@@ -222,18 +285,19 @@ def testSearch(api, categories):
     net = tflearn.fully_connected(net, 32)
     net = tflearn.fully_connected(net, 32)
     net = tflearn.fully_connected(net, 2, activation='softmax')
-    adam = tflearn.optimizers.Adam(learning_rate=0.01)
+    adam = tflearn.optimizers.Adam(learning_rate=0.0001)
     net = tflearn.regression(net, optimizer=adam)
     # Define model.
     model = tflearn.DNN(net, tensorboard_verbose=3)
     # Start training.
-    model.fit(data, labels, n_epoch=10, batch_size=32, show_metric=True)
+    model.fit(data, labels, n_epoch=1000, batch_size=32, show_metric=True)
+    # Test the models predictions
     pred = model.predict(testSet)
     i = 0
     for el in pred:
         print("Test set #" + str(i+1))
-        print("Random (Gameloft) pred: " + str(pred[i][0]) + "/" + str(testSetLabels[i][0]))
-        print("Random (Google) pred: " + str(pred[i][1]) + "/" + str(testSetLabels[i][1]))
+        print("Malicious: " + str(pred[i][0]) + "/" + str(testSetLabels[i][0]))
+        print("Safe: " + str(pred[i][1]) + "/" + str(testSetLabels[i][1]))
         i = i + 1
 
 

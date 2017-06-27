@@ -115,6 +115,7 @@ def normalizeByApp(apps, nValue=1.0):
     for app in apps:
         maxValue = max(app)
         maxValue = app[maxValue]
+        if maxValue == 0: maxValue = 1
         for key in app:
             app[key] = (app[key] / float(maxValue)) * nValue
     return apps
@@ -130,6 +131,7 @@ def normalizeByCategory(apps, nValue=1.0):
             if app[key] > maxValue:
                 maxValue = app[key]
         # Normalize
+        if maxValue == 0: maxValue = 1
         for app in apps:
             app[key] = (app[key] / float(maxValue)) * nValue
         # Reset max value
@@ -146,6 +148,7 @@ def normalizeDataByCategory(data, nValue=100.0):
                 if VERBOSE: print("Staged max: " + str(maxValue))
         # Normalize
         if VERBOSE: print("Max value: " + str(maxValue))
+        if maxValue == 0: maxValue = 1
         for app in data:
             app[i] = (app[i] / float(maxValue)) * nValue
             if VERBOSE:
@@ -181,21 +184,21 @@ def randomizeData(data, labels):
 
 # This function is a scratchpad and a total mess.
 def testSearch(api, categories):
-    #test_search = maxSearch(api, searchString="certificateValidityGapRoundedYears:\"* - 5\"", categories=categories)
-    #test_search_mal = maxSearch(api, searchString="certificateValidityGapRoundedYears:\"10 - *\"", categories=categories)
-    #formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
-    #formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
-    # formattedResults = normalizeByCategory(formattedResults)
-    # formattedResultsMal = normalizeByCategory(formattedResultsMal)
+    test_search = maxSearch(api, searchString="developerName:\"Google Inc.\"", categories=categories)
+    test_search_mal = maxSearch(api, searchString="developerName:\"Gameloft\"", categories=categories)
+    formattedResults = getIntFilteredAppDict(test_search, setTo=-1)
+    formattedResultsMal = getIntFilteredAppDict(test_search_mal, setTo=-1)
+    formattedResults = normalizeByCategory(formattedResults)
+    formattedResultsMal = normalizeByCategory(formattedResultsMal)
     # print(json.dumps(formattedResults, indent=2))
-    #data, labels = createTrainingSet(formattedResults, malicious=False)
-    #data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
-    #labels = np.append(labels, labels_mal, axis=0)
-    #data.extend(data_mal)
-    #pickle.dump(data, open("data.pickle", "wb"))
-    #pickle.dump(labels, open("labels.pickle", "wb"))
-    data = pickle.load(open("data.pickle", "rb"))
-    labels = pickle.load(open("labels.pickle", "rb"))
+    data, labels = createTrainingSet(formattedResults, malicious=False)
+    data_mal, labels_mal = createTrainingSet(formattedResultsMal, malicious=True)
+    labels = np.append(labels, labels_mal, axis=0)
+    data.extend(data_mal)
+    pickle.dump(data, open("data.pickle", "wb"))
+    pickle.dump(labels, open("labels.pickle", "wb"))
+    #data = pickle.load(open("data.pickle", "rb"))
+    #labels = pickle.load(open("labels.pickle", "rb"))
     data, labels = randomizeData(data, labels)
     data = normalizeDataByCategory(data)
     print(data)
@@ -218,15 +221,19 @@ def testSearch(api, categories):
     # Start training.
     model.fit(data, labels, n_epoch=100, batch_size=32, show_metric=True)
     rand = []
+    r_label = []
     for i in range(10):
-        rand.append(data[random.randrange(0, len(data), 1)])
+        j = random.randrange(0, len(data), 1)
+        rand.append(data[j])
+        r_label.append(labels[j])
 
     pred = model.predict(rand)
     i = 0
     for el in pred:
         print(rand[i])
-        print("Random (small) pred: ", pred[i][1])
-        print("Random (large) pred: ", pred[i][0])
+        print(r_label[i])
+        print("Random (Gameloft) pred: ", pred[i][0])
+        print("Random (Google) pred: ", pred[i][1])
         i = i + 1
 
 

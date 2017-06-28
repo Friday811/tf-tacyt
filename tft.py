@@ -34,217 +34,230 @@ import numpy as np
 import random
 import hashlib
 import pickle
+from utils import TFTUtils
 
 VERBOSE = True
 APPDATAFILE = 'appdata'
 
 
-# Use as shorthand for printing informational/debug
-# stuff, will only print when VERBOSE = True
-def vPrint(message):
-    if VERBOSE:
-        print(message)
+class TFTacyt(object):
+    """
+    TensorFlow-Tacyt Class
+    """
 
+    def __init__(self, api, categories, verbosity=0):
+        self.api = api
+        self.categories = categories
+        self.verbosity = verbosity
+        self.Util = TFTUtils(self.verbosity)
 
-# Get the categories to learn from the given file and return it.
-# This allows you to easily select which criteria will be used
-# to learn and search.
-#
-# File should be formatted with one category per line. Lines
-# commented with # will be ignored
-def getCategoriesFromFile(fileName):
-    categories = []
-    with open(fileName) as f:
-        lines = f.readlines()
-    for line in lines:
-        if line[0] != '#':
-            categories.append(line.rstrip(os.linesep))
-    return categories
+    # Use as shorthand for printing informational/debug
+    # stuff, will only print when VERBOSE = True
+    def vPrint(self, message, verbosity=TFTUtils.DEBUG):
+        self.Util.vPrint(message, verbosity)
 
+    # Get the categories to learn from the given file and return it.
+    # This allows you to easily select which criteria will be used
+    # to learn and search.
+    #
+    # File should be formatted with one category per line. Lines
+    # commented with # will be ignored
+    @staticmethod
+    def getCategoriesFromFile(fileName):
+        categories = []
+        with open(fileName) as f:
+            lines = f.readlines()
+        for line in lines:
+            if line[0] != '#':
+                categories.append(line.rstrip(os.linesep))
+        return categories
 
-# Given a results json from tacyt and a list of categories to
-# learn from, return a list of dictionaries for each app with
-# any key not in the list of categories removed.
-# If categories are not specified, return all.
-# If a category is not found, it will be instantiated with the notFound var.
-# If notFound is None, no replacement will be made
-def getFormattedApplicationsFromResults(results, categories=[], notFound=None):
-    apps = []
-    categoriesLen = len(categories)
-    for app in results['result']['applications']:
-        if categoriesLen:
-            for key in app.keys():
-                # Remove any keys not in categories
-                if key not in categories:
-                    app.pop(key, None)
-            apps.append(app)
-        else:
-            apps.append(app)
-    if notFound is not None:
-        for app in apps:
-            appKeys = app.keys()
-            for cat in categories:
-                if cat not in appKeys:
-                    app[cat] = notFound
-    return apps
+    # Given a results json from tacyt and a list of categories to
+    # learn from, return a list of dictionaries for each app with
+    # any key not in the list of categories removed.
+    # If categories are not specified, return all.
+    # If a category is not found, it will be instantiated with the notFound var.
+    # If notFound is None, no replacement will be made
+    @staticmethod
+    def getFormattedApplicationsFromResults(results, categories=[], notFound=None):
+        apps = []
+        categoriesLen = len(categories)
+        for app in results['result']['applications']:
+            if categoriesLen:
+                for key in app.keys():
+                    # Remove any keys not in categories
+                    if key not in categories:
+                        app.pop(key, None)
+                apps.append(app)
+            else:
+                apps.append(app)
+        if notFound is not None:
+            for app in apps:
+                appKeys = app.keys()
+                for cat in categories:
+                    if cat not in appKeys:
+                        app[cat] = notFound
+        return apps
 
-
-# Takes the strings in app descriptions and hashes them to unique
-# integer values. Should be normalized after. Usefullness will
-# depend on the model you use.
-def hashAppStrings(apps):
-    for app in apps:
-        for key in app.keys():
-            if not (type(app[key]) == int or type(app[key]) == float):
-                app[key] = int(
-                    hashlib.md5(app[key].encode('utf-8')).hexdigest(),
-                    16)
-    return apps
-
-
-# Given a list of dictionaries corresponding to apps,
-# remove all elements from those dictionaries that are not ints
-# or set them to a specific int
-def getIntFilteredAppDict(apps, setTo=None):
-    if setTo is None:
+    # Takes the strings in app descriptions and hashes them to unique
+    # integer values. Should be normalized after. Usefullness will
+    # depend on the model you use.
+    @staticmethod
+    def hashAppStrings(apps):
         for app in apps:
             for key in app.keys():
                 if not (type(app[key]) == int or type(app[key]) == float):
-                    app.pop(key, None)
-    else:
-        for app in apps:
-            for key in app.keys():
-                if not (type(app[key]) == int or type(app[key]) == float):
-                    app[key] = setTo
-    return apps
+                    app[key] = int(
+                        hashlib.md5(app[key].encode('utf-8')).hexdigest(),
+                        16)
+        return apps
 
-
-# Create a training data set from a list of app dicts
-# Returns data, a list of lists sorted the same for each app
-# and the labels for the categories [malicious, benign]
-def createTrainingSet(apps, malicious=False):
-    data = []
-    if malicious:
-        labels = np.repeat(np.array([[1., 0.]]), [len(apps)], axis=0)
-    else:
-        labels = np.repeat(np.array([[0., 1.]]), [len(apps)], axis=0)
-    for app in apps:
-        appList = []
-        for key in sorted(app):
-            appList.append(app[key])
-        data.append(appList)
-    return data, labels
-
-
-# Set all values for app features to be the same for the entire
-# list of dicts given. Used for debugging that the damn thing works.
-def setAllValues(apps, value=True):
-    for app in apps:
-        for key in app:
-            app[key] = value
-    return apps
-
-
-# Normalize the relative values for each app to each other
-# only works if all values are int or float
-def normalizeByApp(apps, nValue=1.0):
-    for app in apps:
-        maxValue = max(app)
-        maxValue = app[maxValue]
-        if maxValue == 0:
-            maxValue = 1
-        for key in app:
-            app[key] = (app[key] / float(maxValue)) * nValue
-    return apps
-
-
-# Normalize the relative values for each app to every other app
-# for that category. Only works if all values are int or float.
-def normalizeByCategory(apps, nValue=1.0):
-    maxValue = 0
-    for key in apps[0].keys():
-        # Find max
-        for app in apps:
-            if app[key] > maxValue:
-                maxValue = app[key]
-        # Normalize
-        if maxValue == 0:
-            maxValue = 1
-        for app in apps:
-            app[key] = (app[key] / float(maxValue)) * nValue
-        # Reset max value
-        maxValue = 0
-    return apps
-
-
-# Same as the normalizeByCategory function, except for operating
-# on the data list of lists, instead of the apps list of dicts
-def normalizeDataByCategory(data, nValue=100.0):
-    maxValue = 0
-    for i in range(len(data[0])):
-        for app in data:
-            if app[i] > maxValue:
-                maxValue = app[i]
-                vPrint("Staged max: " + str(maxValue))
-        # Normalize
-        vPrint("Max value: " + str(maxValue))
-        if maxValue == 0:
-            maxValue = 1
-        for app in data:
-            app[i] = (app[i] / float(maxValue)) * nValue
-            vPrint("New normal: " + str(app[i]))
-        maxValue = 0
-    return data
-
-
-# Search for 1000 entries for the given string and format it with
-# the given categories argument
-def maxSearch(api, searchString='', categories=[]):
-    results = []
-    for i in range(10):
-        vPrint("Searching for " + searchString + " page " + str(i+1))
-        search = api.search_apps(searchString, maxResults=100, numberPage=i+1)
-        search = getFormattedApplicationsFromResults(
-            search.get_data(),
-            categories=categories,
-            notFound=-1)
-        results.extend(search)
-    return results
-
-
-# Randomize data and labels, very important for training if you
-# build your data sets per category.
-def randomizeData(data, labels):
-    a = []
-    b = []
-    combined = list(zip(data, labels))
-    random.shuffle(combined)
-    a[:], b[:] = zip(*combined)
-    b = np.array(b)
-    return a, b
-
-
-# Creates a data, labels pair from the given API and list of search terms
-# The categories should be passed as well.
-def createDLPairFromList(api, searchTerms, categories=[], malicious=False):
-    data = []
-    labels = -1
-    for term in searchTerms:
-        search = maxSearch(api, searchString=term,
-                           categories=categories)
-        search = getIntFilteredAppDict(search, setTo=-1)
-        sData, sLabel = createTrainingSet(search, malicious=malicious)
-        data.extend(sData)
-        if type(labels) is int:
-            labels = sLabel
+    # Given a list of dictionaries corresponding to apps,
+    # remove all elements from those dictionaries that are not ints
+    # or set them to a specific int
+    @staticmethod
+    def getIntFilteredAppDict(apps, setTo=None):
+        if setTo is None:
+            for app in apps:
+                for key in app.keys():
+                    if not (type(app[key]) == int or type(app[key]) == float):
+                        app.pop(key, None)
         else:
-            labels = np.append(labels, sLabel, axis=0)
-    return data, labels
+            for app in apps:
+                for key in app.keys():
+                    if not (type(app[key]) == int or type(app[key]) == float):
+                        app[key] = setTo
+        return apps
+
+    # Create a training data set from a list of app dicts
+    # Returns data, a list of lists sorted the same for each app
+    # and the labels for the categories [malicious, benign]
+    @staticmethod
+    def createTrainingSet(apps, malicious=False):
+        data = []
+        if malicious:
+            labels = np.repeat(np.array([[1., 0.]]), [len(apps)], axis=0)
+        else:
+            labels = np.repeat(np.array([[0., 1.]]), [len(apps)], axis=0)
+        for app in apps:
+            appList = []
+            for key in sorted(app):
+                appList.append(app[key])
+            data.append(appList)
+        return data, labels
+
+    # Set all values for app features to be the same for the entire
+    # list of dicts given. Used for debugging that the damn thing works.
+    @staticmethod
+    def setAllValues(apps, value=True):
+        for app in apps:
+            for key in app:
+                app[key] = value
+        return apps
+
+    # Normalize the relative values for each app to each other
+    # only works if all values are int or float
+    @staticmethod
+    def normalizeByApp(apps, nValue=1.0):
+        for app in apps:
+            maxValue = max(app)
+            maxValue = app[maxValue]
+            if maxValue == 0:
+                maxValue = 1
+            for key in app:
+                app[key] = (app[key] / float(maxValue)) * nValue
+        return apps
+
+    # Normalize the relative values for each app to every other app
+    # for that category. Only works if all values are int or float.
+    @staticmethod
+    def normalizeByCategory(apps, nValue=1.0):
+        maxValue = 0
+        for key in apps[0].keys():
+            # Find max
+            for app in apps:
+                if app[key] > maxValue:
+                    maxValue = app[key]
+            # Normalize
+            if maxValue == 0:
+                maxValue = 1
+            for app in apps:
+                app[key] = (app[key] / float(maxValue)) * nValue
+            # Reset max value
+            maxValue = 0
+        return apps
+
+    # Same as the normalizeByCategory function, except for operating
+    # on the data list of lists, instead of the apps list of dicts
+    def normalizeDataByCategory(self, data, nValue=100.0):
+        maxValue = 0
+        for i in range(len(data[0])):
+            for app in data:
+                if app[i] > maxValue:
+                    maxValue = app[i]
+                    self.vPrint("Staged max: " + str(maxValue), self.Util.DEBUG)
+            # Normalize
+            self.vPrint("Max value: " + str(maxValue), self.Util.DEBUG)
+            if maxValue == 0:
+                maxValue = 1
+            for app in data:
+                app[i] = (app[i] / float(maxValue)) * nValue
+                self.vPrint("New normal: " + str(app[i]), self.Util.DEBUG)
+            maxValue = 0
+        return data
+
+    # Search for 1000 entries for the given string and format it with
+    # the given categories argument
+    def maxSearch(self, searchString=''):
+        api = self.api
+        categories = self.categories
+        results = []
+        for i in range(10):
+            self.vPrint("Searching for " + searchString + " page " + str(i+1), self.Util.DEBUG)
+            search = api.search_apps(searchString, maxResults=100, numberPage=i+1)
+            search = self.getFormattedApplicationsFromResults(
+                search.get_data(),
+                categories=categories,
+                notFound=-1)
+            results.extend(search)
+        return results
+
+    # Randomize data and labels, very important for training if you
+    # build your data sets per category.
+    @staticmethod
+    def randomizeData(data, labels):
+        a = []
+        b = []
+        combined = list(zip(data, labels))
+        random.shuffle(combined)
+        a[:], b[:] = zip(*combined)
+        b = np.array(b)
+        return a, b
+
+    # Creates a data, labels pair from the given API and list of search terms
+    # The categories should be passed as well.
+    def createDLPairFromList(self, searchTerms, malicious=False):
+        api = self.api
+        categories = self.categories
+        data = []
+        labels = -1
+        for term in searchTerms:
+            search = self.maxSearch(searchString=term)
+            search = TFTacyt.getIntFilteredAppDict(search, setTo=-1)
+            sData, sLabel = TFTacyt.createTrainingSet(search, malicious=malicious)
+            data.extend(sData)
+            if type(labels) is int:
+                labels = sLabel
+            else:
+                labels = np.append(labels, sLabel, axis=0)
+        return data, labels
 
 
 # This function is a scratchpad and a total mess.
-def testSearch(api, categories):
-    RESET = True
+def testSearch(TFT):
+    api = TFT.api
+    categories = TFT.categories
+    RESET = False
     TRAIN = True
     if RESET:
         # Get results for malicious apps and read them into data and labels
@@ -253,16 +266,12 @@ def testSearch(api, categories):
         with open("maliciousapps/JudyApps.txt") as f:
             content.extend(f.readlines())
         content = [x.rstrip('\r\n') for x in content]
-        data, labels = createDLPairFromList(api, content,
-                                            categories=categories,
-                                            malicious=True)
+        data, labels = TFT.createDLPairFromList(content, malicious=True)
         # Get known good apps and read them in to the corpus
         goodTerms = ["developerName:\"Google Inc.\"",
                      "developerName:\"Gameloft\"",
                      "developerName:\"Facebook\""]
-        sData, sLabel = createDLPairFromList(api, goodTerms,
-                                             categories=categories,
-                                             malicious=False)
+        sData, sLabel = TFT.createDLPairFromList(goodTerms, malicious=False)
         data.extend(sData)
         labels = np.append(labels, sLabel, axis=0)
         # Pickle it to use later because searching takes forever.
@@ -272,10 +281,10 @@ def testSearch(api, categories):
         data = pickle.load(open("pickles/corpus_data_XJ.pickle", "rb"))
         labels = pickle.load(open("pickles/corpus_labels_XJ.pickle", "rb"))
     # Randomize the order, important for training
-    data, labels = randomizeData(data, labels)
+    data, labels = TFT.randomizeData(data, labels)
     # Normalize the data by category, since not one category should weigh
     # more than any other category, normalizing is important.
-    data = normalizeDataByCategory(data)
+    data = TFT.normalizeDataByCategory(data)
     # Remove random testing set
     testSet = []
     testSetLabels = []
@@ -285,14 +294,14 @@ def testSearch(api, categories):
         testSetLabels.append(labels[j])
         labels = np.delete(labels, j, axis=0)
     # Print for debug.
-    vPrint(data)
-    vPrint(type(data))
+    TFT.vPrint(data)
+    TFT.vPrint(type(data))
     for i in data:
-        vPrint(str(len(i)) + ' : ' + str(i))
-    vPrint(labels)
-    vPrint(type(labels))
-    vPrint(labels.shape)
-    vPrint(labels.dtype)
+        TFT.vPrint(str(len(i)) + ' : ' + str(i))
+    TFT.vPrint(labels)
+    TFT.vPrint(type(labels))
+    TFT.vPrint(labels.shape)
+    TFT.vPrint(labels.dtype)
     # Build neural network
     net = tflearn.input_data(shape=[None, len(data[0])])
     net = tflearn.fully_connected(net, 32)
@@ -319,18 +328,18 @@ def testSearch(api, categories):
     i = 0
     for el in pred:
         if (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
-            vPrint("Test set #" + str(i+1) +
+            TFT.vPrint("Test set #" + str(i+1) +
                    " correctly identified malicious.")
             cM = cM + 1
         elif (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
-            vPrint("Test set #" + str(i+1) +
+            TFT.vPrint("Test set #" + str(i+1) +
                    " false positively identified malicious.")
             fP = fP + 1
         elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
-            vPrint("Test set #" + str(i+1) + " correctly identified safe.")
+            TFT.vPrint("Test set #" + str(i+1) + " correctly identified safe.")
             cS = cS + 1
         elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
-            vPrint("Test set #" + str(i+1) + " incorrectly marked safe.")
+            TFT.vPrint("Test set #" + str(i+1) + " incorrectly marked safe.")
             iS = iS + 1
         i = i + 1
     print("Correctly identified malicious: " + str(cM) + "/" + str(cM + iS))
@@ -338,18 +347,18 @@ def testSearch(api, categories):
 
 
 def main():
-    vPrint("Verbose mode.")
     keys = open('keys.api')
     API_ID = keys.readline().rstrip(os.linesep)[7:]
     SECRET = keys.readline().rstrip(os.linesep)[7:]
     keys.close()
-    categories = getCategoriesFromFile(APPDATAFILE)
-    vPrint("API_ID: " + API_ID)
-    vPrint("SECRET: " + SECRET)
-    vPrint("Categories: ")
-    vPrint(categories)
+    categories = TFTacyt.getCategoriesFromFile(APPDATAFILE)
+    #vPrint("API_ID: " + API_ID)
+    #vPrint("SECRET: " + SECRET)
+    #vPrint("Categories: ")
+    #vPrint(categories)
     api = ta.TacytApp(API_ID, SECRET)
-    testSearch(api, categories)
+    TFT = TFTacyt(api, categories, verbosity=TFTUtils.DEBUG)
+    testSearch(TFT)
 
 
 if __name__ == '__main__':

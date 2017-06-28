@@ -1,5 +1,7 @@
 ### Tacyt PUP Identifier ###
 
+#### Usage ####
+See example.py script for usage.
 
 #### Requirements ####
  - Python 2.7, Tacyt API isn't avaiable in 3.x
@@ -49,6 +51,6 @@ False positives: 2/91
 ```
 
 ##### To-Do #####
- - Convert TFT.py from script to class
+ - Use example.py as guideline to move funcionality to TFTacyt class
  - Python package
  - String processing: create vocabulary from strings in description, permissions, emails, etc, and use vocab comparison as factor in model

@@ -38,12 +38,17 @@ from tftutils import TFTUtils
 class TFTacyt(object):
     """
     TensorFlow-Tacyt Class
+    See example.py for usage information.
     """
 
     def __init__(self, api, categories, verbosity=0):
+        # Instantiate
         self.api = api
         self.categories = categories
         self.verbosity = verbosity
+        self.DATA = []
+        self.LABELS = -1
+        self.MODEL = None
         self.Util = TFTUtils(self.verbosity)
         self.vPrint(('Categories: ' + str(self.categories)), self.Util.DEBUG)
 
@@ -247,6 +252,128 @@ class TFTacyt(object):
             else:
                 labels = np.append(labels, sLabel, axis=0)
         return data, labels
+
+    #########################################################################
+    # Helper methods: These methods call other methods from the class to    #
+    #                 make it easier to load data, search, save, etc.       #
+    #                                                                       #
+    # You should be able to, with these methods:                            #
+    #       Create a dataset from a list of search words:                   #
+    #           addDatasetFromTerms(searchTerms)                            #
+    #       Save and load the dataset: saveDataset(), loadDataset()         #
+    #       Preprocess it for learning: preprocess()                        #
+    #       Remove a set of validation data: createTestingSet()             #
+    #       Create, save, and load a model.                                 #
+    #       Validate the model from testing set.                            #
+    #                                                                       #
+    # It should be possible to recreate their functionality with the        #
+    # functions they wrap, if you want to modify parts in the middle.       #
+    #########################################################################
+
+    # Wrapper function for createDLPairFromList that stores data and label as
+    # variables local to the TFT instance
+    def addDatasetFromTerms(self, searchTerms, malicious=False):
+        data, labels = self.createDLPairFromList(searchTerms, malicious=malicious)
+        self.DATA.extend(data)
+        if type(self.LABELS) is int:
+            self.LABELS = labels
+        else:
+            self.LABELS = np.append(self.LABELS, labels, axis=0)
+        return self.DATA, self.LABELS
+
+    # Save the data, labels to file
+    def saveDataset(self, filename="pickles/dataset.pickle"):
+        combined = list(zip(self.DATA, self.LABELS))
+        pickle.dump(combined, open(filename, "wb"))
+
+    # Load the data, labels from file
+    def loadDataset(self, filename="pickles/dataset.pickle"):
+        combined = pickle.load(open(filename, "rb"))
+        a = []
+        b = []
+        a[:], b[:] = zip(*combined)
+        b = np.array(b)
+        self.DATA = a
+        self.LABELS = b
+        return a, b
+
+    # Preprocesses data by randomizing the order and normalizing by category
+    def preprocess(self):
+        self.DATA, self.LABELS = self.randomizeData(self.DATA, self.LABELS)
+        self.DATA = self.normalizeDataByCategory(self.DATA)
+
+    # Creates a test set of data, removed from training set
+    # for validation of the model.
+    def createTestingSet(self, size=-1):
+        if size == -1:
+            size = len(self.DATA) // 10
+        testSet = []
+        testSetLabels = []
+        for i in range(size):
+            j = random.randrange(0, len(self.DATA), 1)
+            testSet.append(self.DATA.pop(j))
+            testSetLabels.append(self.LABELS[j])
+            self.LABELS = np.delete(self.LABELS, j, axis=0)
+        return testSet, testSetLabels
+
+    # Data must exist before the model is created
+    def createModel(self):
+        net = tflearn.input_data(shape=[None, len(self.DATA[0])])
+        net = tflearn.fully_connected(net, 32)
+        net = tflearn.fully_connected(net, 32)
+        net = tflearn.fully_connected(net, 2, activation='softmax')
+        adam = tflearn.optimizers.Adam(learning_rate=0.0001)
+        net = tflearn.regression(net, optimizer=adam)
+        model = tflearn.DNN(net, tensorboard_verbose=self.verbosity)
+        self.MODEL = model
+
+    def trainModel(self):
+        self.MODEL.fit(self.DATA,
+                       self.LABELS,
+                       n_epoch=1000,
+                       batch_size=32,
+                       show_metric=True
+                       )
+
+    def saveModel(self, filename='models/model.tflearn'):
+        if self.MODEL is None:
+            self.createModel()
+        self.MODEL.save(filename)
+
+    def loadModel(self, filename='models/model.tflearn'):
+        if self.MODEL is None:
+            self.createModel()
+        self.MODEL.load(filename)
+
+    def validateModel(self, testSet, testSetLabels):
+        pred = self.MODEL.predict(testSet)
+        fP = 0
+        cM = 0
+        cS = 0
+        iS = 0
+        i = 0
+        for el in pred:
+            if (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
+                self.vPrint("Test set #" + str(i+1) +
+                            " correctly identified malicious.",
+                            self.Util.DEBUG)
+                cM = cM + 1
+            elif (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
+                self.vPrint("Test set #" + str(i+1) +
+                            " false positively identified malicious.",
+                            self.Util.DEBUG)
+                fP = fP + 1
+            elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
+                self.vPrint("Test set #" + str(i+1) + " correctly identified safe.",
+                            self.Util.DEBUG)
+                cS = cS + 1
+            elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
+                self.vPrint("Test set #" + str(i+1) + " incorrectly marked safe.",
+                            self.Util.DEBUG)
+                iS = iS + 1
+            i = i + 1
+        print("Correctly identified malicious: " + str(cM) + "/" + str(cM + iS))
+        print("False positives: " + str(fP) + "/" + str(fP+cS))
 
 
 if __name__ == '__main__':

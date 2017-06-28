@@ -27,30 +27,28 @@ Multiple runs and validations average around a 75% detection rate of malicious a
 
 ##### Example Results #####
 ```
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 8/11
-False positives: 2/89
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 8/11
-False positives: 2/89
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 13/15
-False positives: 3/85
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 7/9
-False positives: 1/91
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 12/14
-False positives: 4/86
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 10/12
-False positives: 1/88
-linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
-Correctly identified malicious: 5/9
-False positives: 2/91
+linux@ecs-tensorflow:~/tf-tacyt$ ./example.py
+Verbosity level set to:  -1
+Correctly identified malicious: 24/32
+False positives: 4/256
+linux@ecs-tensorflow:~/tf-tacyt$ ./example.py
+Verbosity level set to:  -1
+Correctly identified malicious: 24/32
+False positives: 2/256
+linux@ecs-tensorflow:~/tf-tacyt$ ./example.py
+Verbosity level set to:  -1
+Correctly identified malicious: 28/36
+False positives: 5/252
+linux@ecs-tensorflow:~/tf-tacyt$ ./example.py
+Verbosity level set to:  -1
+Correctly identified malicious: 28/39
+False positives: 5/249
+linux@ecs-tensorflow:~/tf-tacyt$ ./example.py
+Verbosity level set to:  -1
+Correctly identified malicious: 30/37
+False positives: 9/251
 ```
 
 ##### To-Do #####
- - Use example.py as guideline to move funcionality to TFTacyt class
  - Python package
  - String processing: create vocabulary from strings in description, permissions, emails, etc, and use vocab comparison as factor in model

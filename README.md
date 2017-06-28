@@ -47,3 +47,8 @@ linux@ecs-tensorflow:~/tf-tacyt$ ./tft.py
 Correctly identified malicious: 5/9
 False positives: 2/91
 ```
+
+##### To-Do #####
+ - Convert TFT.py from script to class
+ - Python package
+ - String processing: create vocabulary from strings in description, permissions, emails, etc, and use vocab comparison as factor in model

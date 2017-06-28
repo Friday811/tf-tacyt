@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # TensorFlow-Tacyt
-# 
+#
 # This script connects to 11Path's Tacyt database
 # and learns to identify malicious applications.
 # Connection to Tacyt through the tacyt python API.
@@ -35,7 +35,7 @@ import random
 import hashlib
 import pickle
 
-VERBOSE = False
+VERBOSE = True
 APPDATAFILE = 'appdata'
 
 
@@ -224,57 +224,45 @@ def randomizeData(data, labels):
     return a, b
 
 
+# Creates a data, labels pair from the given API and list of search terms
+# The categories should be passed as well.
+def createDLPairFromList(api, searchTerms, categories=[], malicious=False):
+    data = []
+    labels = -1
+    for term in searchTerms:
+        search = maxSearch(api, searchString=term,
+                           categories=categories)
+        search = getIntFilteredAppDict(search, setTo=-1)
+        sData, sLabel = createTrainingSet(search, malicious=malicious)
+        data.extend(sData)
+        if type(labels) is int:
+            labels = sLabel
+        else:
+            labels = np.append(labels, sLabel, axis=0)
+    return data, labels
+
+
 # This function is a scratchpad and a total mess.
 def testSearch(api, categories):
-    RESET = False
-    TRAIN = False
+    RESET = True
+    TRAIN = True
     if RESET:
-        # Create the list to hold data and NumPy array to hold labels
-        data = []
-        labels = -1  # instantiate on first use //yesitsahack
         # Get results for malicious apps and read them into data and labels
         with open("maliciousapps/XavierApps.txt") as f:
             content = f.readlines()
-        content = [x.rstrip('\r\n') for x in content]
-        for pName in content:
-            search = maxSearch(api, searchString=("packageName:" + pName),
-                               categories=categories)
-            search = getIntFilteredAppDict(search, setTo=-1)
-            sData, sLabel = createTrainingSet(search, malicious=True)
-            data.extend(sData)
-            vPrint(str(labels))
-            vPrint(str(sLabel))
-            if type(labels) is int:
-                labels = sLabel
-            else:
-                labels = np.append(labels, sLabel, axis=0)
         with open("maliciousapps/JudyApps.txt") as f:
-            content = f.readlines()
+            content.extend(f.readlines())
         content = [x.rstrip('\r\n') for x in content]
-        for pName in content:
-            search = maxSearch(api, searchString=("packageName:" + pName),
-                               categories=categories)
-            search = getIntFilteredAppDict(search, setTo=-1)
-            sData, sLabel = createTrainingSet(search, malicious=True)
-            data.extend(sData)
-            labels = np.append(labels, sLabel, axis=0)
+        data, labels = createDLPairFromList(api, content,
+                                            categories=categories,
+                                            malicious=True)
         # Get known good apps and read them in to the corpus
-        search = maxSearch(api, searchString="developerName:\"Google Inc.\"",
-                           categories=categories)
-        search = getIntFilteredAppDict(search, setTo=-1)
-        sData, sLabel = createTrainingSet(search, malicious=False)
-        data.extend(sData)
-        labels = np.append(labels, sLabel, axis=0)
-        search = maxSearch(api, searchString="developerName:\"Gameloft\"",
-                           categories=categories)
-        search = getIntFilteredAppDict(search, setTo=-1)
-        sData, sLabel = createTrainingSet(search, malicious=False)
-        data.extend(sData)
-        labels = np.append(labels, sLabel, axis=0)
-        search = maxSearch(api, searchString="developerName:\"Facebook\"",
-                           categories=categories)
-        search = getIntFilteredAppDict(search, setTo=-1)
-        sData, sLabel = createTrainingSet(search, malicious=False)
+        goodTerms = ["developerName:\"Google Inc.\"",
+                     "developerName:\"Gameloft\"",
+                     "developerName:\"Facebook\""]
+        sData, sLabel = createDLPairFromList(api, goodTerms,
+                                             categories=categories,
+                                             malicious=False)
         data.extend(sData)
         labels = np.append(labels, sLabel, axis=0)
         # Pickle it to use later because searching takes forever.
@@ -315,7 +303,7 @@ def testSearch(api, categories):
     # Define model.
     model = tflearn.DNN(net, tensorboard_verbose=3)
     if TRAIN:
-        model.load("models/XJ_GGF_model.tflearn")
+        #model.load("models/XJ_GGF_model.tflearn")
         # Start training.
         model.fit(data, labels, n_epoch=1000, batch_size=32, show_metric=True)
         # Save the model
@@ -331,10 +319,12 @@ def testSearch(api, categories):
     i = 0
     for el in pred:
         if (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
-            vPrint("Test set #" + str(i+1) + " correctly identified malicious.")
+            vPrint("Test set #" + str(i+1) +
+                   " correctly identified malicious.")
             cM = cM + 1
         elif (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
-            vPrint("Test set #" + str(i+1) + " false positively identified malicious.")
+            vPrint("Test set #" + str(i+1) +
+                   " false positively identified malicious.")
             fP = fP + 1
         elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
             vPrint("Test set #" + str(i+1) + " correctly identified safe.")

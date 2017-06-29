@@ -46,6 +46,10 @@ class SentimentAnalyzer(object):
         for word in words:
             if word in self.corpusID:
                 parsed.append(self.corpusID[word])
+            else:
+                # 1 past end of corpus is for unknown words
+                # 0 will be used for padding
+                parsed.append(len(self.corpusID) + 1)
         return parsed
 
 
@@ -58,7 +62,7 @@ def main():
     SA.addToCorpus('Hey, you - what are you doing here!?')
     SA.createCorpusID()
     print(SA.corpusID)
-    print(SA.parseSentence('Hey world, what?'))
+    print(SA.parseSentence('Hey world, what? unknown'))
 
 
 if __name__ == '__main__':

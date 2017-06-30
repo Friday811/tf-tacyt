@@ -14,20 +14,35 @@ class SentimentAnalyzer(object):
     def __init__(self):
         self.corpus = []
         self.corpusID = {}
+        self.data = []
+        self.labels = []
 
+    # Splits strings on spaces, special chars, etc, from regex
     def splitString(self, string):
         split = []
         for word in re.split('\W+', string):
             split.append(word)
         return split
 
-    def addToCorpus(self, words):
+    # Add the given sentence or list of sentences to the 
+    # self.corpus, takes strings or lists containing strings
+    def addToCorpus(self, words, malicious=False):
+        data = []
         if type(words) is list:
             for sentence in words:
                     self.corpus.extend(self.splitString(sentence))
+                    data.append(self.splitString(sentence))
         elif type(words) is str:
             self.corpus.extend(self.splitString(words))
+            data.append(self.splitString(words))
+        self.data.append(data)
+        if malicious:
+            self.labels.append([1., 0.])
+        else:
+            self.labels.append([0., 1.])
 
+    # Uses the existing corpus to assign ID numbers to each
+    # string present
     def createCorpusID(self):
         i = 1
         for word in self.corpus:
@@ -35,6 +50,10 @@ class SentimentAnalyzer(object):
                 self.corpusID[word] = i
                 i = i + 1
 
+    # parses a sentence (either a string or list of strings)
+    # into a list of IDs from the corpus ID
+    # Any word not found gets the ID of len(corpusID) + 1
+    # 0 is reserved for padding
     def parseSentence(self, sentence):
         words = []
         parsed = []
@@ -63,6 +82,8 @@ def main():
     SA.createCorpusID()
     print(SA.corpusID)
     print(SA.parseSentence('Hey world, what? unknown'))
+    print(SA.labels)
+    print(SA.data)
 
 
 if __name__ == '__main__':

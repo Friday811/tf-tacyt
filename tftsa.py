@@ -87,7 +87,12 @@ class SentimentAnalyzer(object):
                 entryL.extend(self.parseSentence(entry))
             self.data[self.data.index(entry)] = entryL
             self.Util.vPrint(entryL, self.Util.DEBUG)
-            
+        maxlen = len(max(self.data, key=len))
+        self.data = pad_sequences(self.data, maxlen=maxlen, value=0.)
+        self.Util.vPrint(self.data, self.Util.DEBUG)
+        self.labels = to_categorical(self.labels, nb_classes=2)
+        self.Util.vPrint(self.labels, self.Util.DEBUG)
+        
 
 def main():
     SA = SentimentAnalyzer(TFTUtils.DEBUG)

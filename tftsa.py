@@ -17,6 +17,7 @@ class SentimentAnalyzer(object):
         self.corpusID = {}
         self.data = []
         self.labels = []
+        self.verbosity = verbosity
         self.Util = TFTUtils(self.verbosity)
 
     # Splits strings on spaces, special chars, etc, from regex

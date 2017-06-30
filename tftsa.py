@@ -2,6 +2,7 @@ from __future__ import division, print_function, absolute_import
 
 import tflearn
 from tflearn.data_utils import to_categorical, pad_sequences
+import numpy as np
 import re
 from tftutils import TFTUtils
 
@@ -90,7 +91,7 @@ class SentimentAnalyzer(object):
         maxlen = len(max(self.data, key=len))
         self.data = pad_sequences(self.data, maxlen=maxlen, value=0.)
         self.Util.vPrint(self.data, self.Util.DEBUG)
-        self.labels = to_categorical(self.labels, nb_classes=2)
+        self.labels = to_categorical(np.array(self.labels), nb_classes=2)
         self.Util.vPrint(self.labels, self.Util.DEBUG)
         
 

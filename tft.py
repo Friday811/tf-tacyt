@@ -33,6 +33,7 @@ import random
 import hashlib
 import pickle
 from tftutils import TFTUtils
+from tftsa import SentimentAnalyzer as SA
 
 
 class TFTacyt(object):
@@ -51,6 +52,8 @@ class TFTacyt(object):
         self.MODEL = None
         self.Util = TFTUtils(self.verbosity)
         self.vPrint(('Categories: ' + str(self.categories)), self.Util.DEBUG)
+        self.SA = SA(verbosity=self.verbosity)
+        self.STRDATA = []
 
     # Use as shorthand for printing informational/debug
     # stuff, will only print when VERBOSE = True
@@ -129,6 +132,27 @@ class TFTacyt(object):
                     if not (type(app[key]) == int or type(app[key]) == float):
                         app[key] = setTo
         return apps
+
+    # Strips strings out of the app dict, adding them to STRDATA
+    # and adding them to the LSTM model.
+    def stripStrings(self, apps, malicious=False):
+        for app in apps:
+            appStrings = []
+            for key in app.keys():
+                if type(app[key]) is str:
+                    appStrings.append(app[key])
+                    app.pop(key, None)
+                elif type(app[key]) is list:
+                    for el in app[key]:
+                        if type(el) is str:
+                            appStrings.append(el)
+                    app.pop(key, None)
+                elif not (type(app[key]) is int or type(app[key]) is float):
+                    app.pop(key, None)
+            self.SA.addToCorpus(appStrings, malicious=malicious)
+            self.STRDATA.append(appStrings)
+        return apps
+
 
     # Create a training data set from a list of app dicts
     # Returns data, a list of lists sorted the same for each app
@@ -244,7 +268,7 @@ class TFTacyt(object):
         labels = -1
         for term in searchTerms:
             search = self.maxSearch(searchString=term)
-            search = TFTacyt.getIntFilteredAppDict(search, setTo=-1)
+            search = self.stripStrings(search, malicious=malicious)
             sData, sLabel = TFTacyt.createTrainingSet(search, malicious=malicious)
             data.extend(sData)
             if type(labels) is int:

@@ -8,12 +8,12 @@ APPDATAFILE = 'appdata'
 # Create the API, define categories to use, create TFTacyt instance
 api = TFTUtils.readAPI('keys.api')
 categories = TFTUtils.getCategoriesFromFile(APPDATAFILE)
-TFT = TFTacyt(api, categories, verbosity=TFTUtils.SILENT)
+TFT = TFTacyt(api, categories, verbosity=TFTUtils.DEBUG)
 
 api = TFT.api
 categories = TFT.categories
-RESET = False
-TRAIN = False
+RESET = True
+TRAIN = True
 if RESET:
     # Get results for malicious apps and add them to the TFT dataset
     with open("maliciousapps/XavierApps.txt") as f:

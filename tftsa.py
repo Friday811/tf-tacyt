@@ -20,6 +20,7 @@ class SentimentAnalyzer(object):
         self.labels = []
         self.verbosity = verbosity
         self.Util = TFTUtils(self.verbosity)
+        self.model = None
 
     # Splits strings on spaces, special chars, etc, from regex
     def splitString(self, string):
@@ -91,9 +92,40 @@ class SentimentAnalyzer(object):
         maxlen = len(max(self.data, key=len))
         self.data = pad_sequences(self.data, maxlen=maxlen, value=0.)
         self.Util.vPrint(self.data, self.Util.DEBUG)
-        self.labels = to_categorical(np.array(self.labels), nb_classes=2)
+        self.labels = np.array(self.labels)
         self.Util.vPrint(self.labels, self.Util.DEBUG)
-        
+
+    def createModel(self):
+        net = tflearn.input_data([None, len(self.data[0])])
+        net = tflearn.embedding(net, input_dim=10000, output_dim=128)
+        net = tflearn.lstm(net, 128, dropout=0.8, dynamic=True)
+        net = tflearn.fully_connected(net, 2, activation='softmax')
+        net = tflearn.regression(net, optimizer='adam', learning_rate=0.001,
+                                 loss='categorical_crossentropy')
+        model = tflearn.DNN(net, tensorboard_verbose=0)
+        self.model = model
+
+    def trainModel(self):
+        if self.model is None:
+            self.createModel()
+        self.model.fit(self.data,
+                       self.labels,
+                       show_metric=True,
+                       batch_size=32
+                       )
+
+    def saveModel(self, filename='models/lstmmodel.tflearn'):
+        if self.model is None:
+            self.createModel()
+        else:
+            self.model.save(filename)
+
+    def loadModel(self, filename='models/lstmmodel.tflearn'):
+        if self.model is None:
+            self.createModel()
+        self.model.load(filename)
+
+
 
 def main():
     SA = SentimentAnalyzer(TFTUtils.DEBUG)
@@ -109,6 +141,8 @@ def main():
     print(SA.data)
     SA.preprocessData()
     print(SA.data)
+    SA.createModel()
+    SA.trainModel()
 
 
 if __name__ == '__main__':

@@ -79,9 +79,9 @@ class SentimentAnalyzer(object):
             entryL = []
             if type(entry) is list:
                 for i in entry:
-                    entryL.extend(parseSentence(i))
+                    entryL.extend(self.parseSentence(i))
             elif type(entry) is str:
-                entryL.extend(parseSentence(entry))
+                entryL.extend(self.parseSentence(entry))
             entry = entryL
             
 

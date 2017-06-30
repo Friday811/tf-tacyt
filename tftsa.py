@@ -85,8 +85,9 @@ class SentimentAnalyzer(object):
                     entryL.extend(self.parseSentence(i))
             elif type(entry) is str:
                 entryL.extend(self.parseSentence(entry))
-            entry = entryL
-            self.Util.vPrint(entryL)
+            self.data[index(entry)] = entryL
+            self.Util.vPrint(entryL, self.Util.DEBUG)
+            self.Util.vPrint(self.data[index(entry)], self.Util.DEBUG)
             
 
 def main():

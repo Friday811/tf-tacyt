@@ -3,6 +3,7 @@ from __future__ import division, print_function, absolute_import
 import tflearn
 from tflearn.data_utils import to_categorical, pad_sequences
 import re
+from tftutils import TFTUtils
 
 
 class SentimentAnalyzer(object):
@@ -11,11 +12,12 @@ class SentimentAnalyzer(object):
     malicious vs nonmalicious sentiment from a 'sentence.'
     """
 
-    def __init__(self):
+    def __init__(self, verbosity=0):
         self.corpus = []
         self.corpusID = {}
         self.data = []
         self.labels = []
+        self.Util = TFTUtils(self.verbosity)
 
     # Splits strings on spaces, special chars, etc, from regex
     def splitString(self, string):
@@ -83,10 +85,11 @@ class SentimentAnalyzer(object):
             elif type(entry) is str:
                 entryL.extend(self.parseSentence(entry))
             entry = entryL
+            self.Util.vPrint(entryL)
             
 
 def main():
-    SA = SentimentAnalyzer()
+    SA = SentimentAnalyzer(TFTUtils.DEBUG)
     SA.addToCorpus('Hello, world!')
     print(SA.corpus)
     SA.addToCorpus(['Hello again.', 'These are words.'])

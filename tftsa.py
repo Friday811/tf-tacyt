@@ -71,6 +71,19 @@ class SentimentAnalyzer(object):
                 parsed.append(len(self.corpusID) + 1)
         return parsed
 
+    # Preprocess the self.data to prepare it for 
+    # use in model training
+    def preprocessData(self):
+        self.createCorpusID()
+        for entry in self.data:
+            entryL = []
+            if type(entry) is list:
+                for i in entry:
+                    entryL.extend(parseSentence(i))
+            elif type(entry) is str:
+                entryL.extend(parseSentence(entry))
+            entry = entryL
+            
 
 def main():
     SA = SentimentAnalyzer()
@@ -83,6 +96,8 @@ def main():
     print(SA.corpusID)
     print(SA.parseSentence('Hey world, what? unknown'))
     print(SA.labels)
+    print(SA.data)
+    SA.preprocessData()
     print(SA.data)
 
 

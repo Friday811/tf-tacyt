@@ -57,4 +57,11 @@ if TRAIN:
 else:
     TFT.loadModel()
 # Test the models predictions
-# TFT.validateModel(testSet, testSetLabels)
+size = len(TFT.DATA)
+testSet = []
+testSetLabels = []
+for i in range(size):
+    j = random.randrange(0, size, 1)
+    testSet.append(TFT.DATA[j])
+    testSetLabels.append(TFT.LABELS[j])
+TFT.validateModel(testSet, testSetLabels)

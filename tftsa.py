@@ -5,6 +5,8 @@ from tflearn.data_utils import to_categorical, pad_sequences
 import numpy as np
 import re
 from tftutils import TFTUtils
+import pickle
+import tensorflow as tf
 
 
 class SentimentAnalyzer(object):
@@ -29,7 +31,7 @@ class SentimentAnalyzer(object):
             split.append(word)
         return split
 
-    # Add the given sentence or list of sentences to the 
+    # Add the given sentence or list of sentences to the
     # self.corpus, takes strings or lists containing strings
     def addToCorpus(self, words, malicious=False):
         data = []
@@ -76,7 +78,7 @@ class SentimentAnalyzer(object):
                 parsed.append(len(self.corpusID) + 1)
         return parsed
 
-    # Preprocess the self.data to prepare it for 
+    # Preprocess the self.data to prepare it for
     # use in model training
     def preprocessData(self):
         self.createCorpusID()
@@ -96,8 +98,14 @@ class SentimentAnalyzer(object):
         self.Util.vPrint(self.labels, self.Util.DEBUG)
 
     def createModel(self):
-        net = tflearn.input_data([None, len(self.data[0])])
-        net = tflearn.embedding(net, input_dim=10000, output_dim=128)
+        self.Util.vPrint("Creating SA Model.", self.Util.DEBUG)
+        net = tflearn.input_data([None, len(self.data)])
+        net = tflearn.embedding(net,
+                                input_dim=len(self.corpusID) + 1,
+                                output_dim=128)
+        self.Util.vPrint("Corpus ID Length: " +
+                         str(len(self.corpusID)),
+                         self.Util.DEBUG)
         net = tflearn.lstm(net, 128, dropout=0.8, dynamic=True)
         net = tflearn.fully_connected(net, 2, activation='softmax')
         net = tflearn.regression(net, optimizer='adam', learning_rate=0.001,
@@ -106,13 +114,21 @@ class SentimentAnalyzer(object):
         self.model = model
 
     def trainModel(self):
+        tf.reset_default_graph()
         if self.model is None:
             self.createModel()
+        self.Util.vPrint("Data: ", self.Util.DEBUG)
+        self.Util.vPrint(str(self.data), self.Util.DEBUG)
+        self.Util.vPrint("Len: " + str(len(self.data)) +
+                         " len([0]): " + str(len(self.data[0])),
+                         self.Util.DEBUG)
+        self.Util.vPrint("Labels: ", self.Util.DEBUG)
+        self.Util.vPrint(str(self.labels), self.Util.DEBUG)
+        self.Util.vPrint(self.labels.shape, self.Util.DEBUG)
         self.model.fit(self.data,
                        self.labels,
                        show_metric=True,
-                       batch_size=32
-                       )
+                       batch_size=None)
 
     def saveModel(self, filename='models/lstmmodel.tflearn'):
         if self.model is None:
@@ -125,6 +141,25 @@ class SentimentAnalyzer(object):
             self.createModel()
         self.model.load(filename)
 
+    def saveDataset(self, filename='pickles/datasetsa.pickle'):
+        self.createCorpusID()
+        combined = list(zip(self.data, self.labels))
+        pickle.dump(combined, open(filename, "wb"))
+        pickle.dump(self.corpusID, open('pickles/datasetCID.pickle', "wb"))
+
+    def loadDataset(self, filename='pickles/datasetsa.pickle'):
+        combined = pickle.load(open(filename, "rb"))
+        a = []
+        b = []
+        a[:], b[:] = zip(*combined)
+        b = np.array(b)
+        self.data = a
+        self.labels = b
+        self.corpusID = pickle.load(open('pickles/datasetCID.pickle', "rb"))
+        self.Util.vPrint("CorpusID loaded: " +
+                         str(self.corpusID),
+                         self.Util.DEBUG)
+        return a, b
 
 
 def main():

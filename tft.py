@@ -139,20 +139,29 @@ class TFTacyt(object):
         for app in apps:
             appStrings = []
             for key in app.keys():
+                if type(app[key]) is unicode:
+                    app[key] = app[key].encode('utf-8')
+                    self.Util.vPrint("Decoded: " + app[key], self.Util.DEBUG)
+                    self.Util.vPrint("Type: " + str(type(app[key])), self.Util.DEBUG)
+                self.Util.vPrint(app[key], self.Util.DEBUG)
+                self.Util.vPrint("Type: " + str(type(app[key])), self.Util.DEBUG)
                 if type(app[key]) is str:
                     appStrings.append(app[key])
-                    app.pop(key, None)
+                    app[key] = -1
                 elif type(app[key]) is list:
                     for el in app[key]:
+                        if type(el) is unicode:
+                            el = el.encode('utf-8')
                         if type(el) is str:
                             appStrings.append(el)
-                    app.pop(key, None)
+                            self.Util.vPrint(el, self.Util.DEBUG)
+                    app[key] = -1
                 elif not (type(app[key]) is int or type(app[key]) is float):
-                    app.pop(key, None)
+                    app[key] = -1
             self.SA.addToCorpus(appStrings, malicious=malicious)
             self.STRDATA.append(appStrings)
+            self.Util.vPrint(appStrings, self.Util.DEBUG)
         return apps
-
 
     # Create a training data set from a list of app dicts
     # Returns data, a list of lists sorted the same for each app
@@ -197,14 +206,22 @@ class TFTacyt(object):
     # for that category. Only works if all values are int or float.
     @staticmethod
     def normalizeByCategory(apps, nValue=1.0):
-        maxValue = 0
+        maxValue = -1
         for key in apps[0].keys():
             # Find max
             for app in apps:
                 if app[key] > maxValue:
                     maxValue = app[key]
             # Normalize
-            if maxValue == 0:
+            # If the maxValue is -1, then all values for this key are
+            # -1, which means no app has it, or it is a string/list
+            # and can be removed
+            if maxValue == -1:
+                for app in apps:
+                    app.pop(key, None)
+            # If the max value is zero, set to 1 so we can normalize
+            # without damaging the universe
+            elif maxValue == 0:
                 maxValue = 1
             for app in apps:
                 app[key] = (app[key] / float(maxValue)) * nValue
@@ -238,17 +255,19 @@ class TFTacyt(object):
         categories = self.categories
         results = []
         for i in range(10):
-            self.vPrint("Searching for " + searchString + " page " + str(i+1), self.Util.DEBUG)
-            search = api.search_apps(searchString, maxResults=100, numberPage=i+1)
-            search = self.getFormattedApplicationsFromResults(
-                search.get_data(),
-                categories=categories,
-                notFound=-1)
-            results.extend(search)
+            try:
+                self.vPrint("Searching for " + searchString + " page " + str(i+1), self.Util.DEBUG)
+                search = api.search_apps(searchString, maxResults=100, numberPage=i+1)
+                search = self.getFormattedApplicationsFromResults(
+                    search.get_data(),
+                    categories=categories,
+                    notFound=-1)
+                results.extend(search)
+            except AttributeError as e:
+                self.vPrint("Encountered an error while searching: " + str(e), self.Util.ERROR)
         return results
 
-    # Randomize data and labels, very important for training if you
-    # build your data sets per category.
+    # Randomize data and labels.
     @staticmethod
     def randomizeData(data, labels):
         a = []
@@ -309,6 +328,7 @@ class TFTacyt(object):
     def saveDataset(self, filename="pickles/dataset.pickle"):
         combined = list(zip(self.DATA, self.LABELS))
         pickle.dump(combined, open(filename, "wb"))
+        self.SA.saveDataset()
 
     # Load the data, labels from file
     def loadDataset(self, filename="pickles/dataset.pickle"):
@@ -319,6 +339,7 @@ class TFTacyt(object):
         b = np.array(b)
         self.DATA = a
         self.LABELS = b
+        self.SA.loadDataset()
         return a, b
 
     # Preprocesses data by randomizing the order and normalizing by category
@@ -342,6 +363,7 @@ class TFTacyt(object):
 
     # Data must exist before the model is created
     def createModel(self):
+        self.SA.createCorpusID()
         net = tflearn.input_data(shape=[None, len(self.DATA[0])])
         net = tflearn.fully_connected(net, 32)
         net = tflearn.fully_connected(net, 32)
@@ -352,6 +374,9 @@ class TFTacyt(object):
         self.MODEL = model
 
     def trainModel(self):
+        self.SA.preprocessData()
+        self.SA.createModel()
+        self.SA.trainModel()
         self.MODEL.fit(self.DATA,
                        self.LABELS,
                        n_epoch=1000,
@@ -363,11 +388,13 @@ class TFTacyt(object):
         if self.MODEL is None:
             self.createModel()
         self.MODEL.save(filename)
+        self.SA.saveModel()
 
     def loadModel(self, filename='models/model.tflearn'):
         if self.MODEL is None:
             self.createModel()
         self.MODEL.load(filename)
+        self.SA.loadModel()
 
     def validateModel(self, testSet, testSetLabels):
         pred = self.MODEL.predict(testSet)

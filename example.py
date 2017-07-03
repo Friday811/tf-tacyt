@@ -12,7 +12,7 @@ TFT = TFTacyt(api, categories, verbosity=TFTUtils.DEBUG)
 
 api = TFT.api
 categories = TFT.categories
-RESET = True
+RESET = False
 TRAIN = True
 if RESET:
     # Get results for malicious apps and add them to the TFT dataset

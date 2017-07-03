@@ -80,10 +80,12 @@ class TFTacyt(object):
     # learn from, return a list of dictionaries for each app with
     # any key not in the list of categories removed.
     # If categories are not specified, return all.
-    # If a category is not found, it will be instantiated with the notFound var.
+    # If a category is not found, it will be instantiated with
+    # the notFound var.
     # If notFound is None, no replacement will be made
     @staticmethod
-    def getFormattedApplicationsFromResults(results, categories=[], notFound=None):
+    def getFormattedApplicationsFromResults(results, categories=[],
+                                            notFound=None):
         apps = []
         categoriesLen = len(categories)
         for app in results['result']['applications']:
@@ -142,9 +144,11 @@ class TFTacyt(object):
                 if type(app[key]) is unicode:
                     app[key] = app[key].encode('utf-8')
                     self.Util.vPrint("Decoded: " + app[key], self.Util.DEBUG)
-                    self.Util.vPrint("Type: " + str(type(app[key])), self.Util.DEBUG)
+                    self.Util.vPrint("Type: " + str(type(app[key])),
+                                     self.Util.DEBUG)
                 self.Util.vPrint(app[key], self.Util.DEBUG)
-                self.Util.vPrint("Type: " + str(type(app[key])), self.Util.DEBUG)
+                self.Util.vPrint("Type: " + str(type(app[key])),
+                                 self.Util.DEBUG)
                 if type(app[key]) is str:
                     appStrings.append(app[key])
                     app[key] = -1
@@ -237,7 +241,8 @@ class TFTacyt(object):
             for app in data:
                 if app[i] > maxValue:
                     maxValue = app[i]
-                    self.vPrint("Staged max: " + str(maxValue), self.Util.DEBUG)
+                    self.vPrint("Staged max: " + str(maxValue),
+                                self.Util.DEBUG)
             # Normalize
             self.vPrint("Max value: " + str(maxValue), self.Util.DEBUG)
             if maxValue == 0:
@@ -256,15 +261,18 @@ class TFTacyt(object):
         results = []
         for i in range(10):
             try:
-                self.vPrint("Searching for " + searchString + " page " + str(i+1), self.Util.DEBUG)
-                search = api.search_apps(searchString, maxResults=100, numberPage=i+1)
+                self.vPrint("Searching for " + searchString + " page " +
+                            str(i+1), self.Util.DEBUG)
+                search = api.search_apps(searchString, maxResults=100,
+                                         numberPage=i+1)
                 search = self.getFormattedApplicationsFromResults(
                     search.get_data(),
                     categories=categories,
                     notFound=-1)
                 results.extend(search)
             except AttributeError as e:
-                self.vPrint("Encountered an error while searching: " + str(e), self.Util.ERROR)
+                self.vPrint("Encountered an error while searching: " + str(e),
+                            self.Util.ERROR)
         return results
 
     # Randomize data and labels.
@@ -288,7 +296,8 @@ class TFTacyt(object):
         for term in searchTerms:
             search = self.maxSearch(searchString=term)
             search = self.stripStrings(search, malicious=malicious)
-            sData, sLabel = TFTacyt.createTrainingSet(search, malicious=malicious)
+            sData, sLabel = TFTacyt.createTrainingSet(search,
+                                                      malicious=malicious)
             data.extend(sData)
             if type(labels) is int:
                 labels = sLabel
@@ -316,7 +325,8 @@ class TFTacyt(object):
     # Wrapper function for createDLPairFromList that stores data and label as
     # variables local to the TFT instance
     def addDatasetFromTerms(self, searchTerms, malicious=False):
-        data, labels = self.createDLPairFromList(searchTerms, malicious=malicious)
+        data, labels = self.createDLPairFromList(searchTerms,
+                                                 malicious=malicious)
         self.DATA.extend(data)
         if type(self.LABELS) is int:
             self.LABELS = labels
@@ -365,10 +375,14 @@ class TFTacyt(object):
         self.SA.preprocessData()
         self.SA.createModel()
         self.SA.trainModel()
+        saData = self.SA.model.predict(self.SA.data)
+        for i in range(len(saData)):
+            self.DATA[i].extend(saData[i])
+            self.Util.vPrint("Appending " + str(saData[i]) + " to entry " +
+                             str(i), self.Util.DEBUG)
 
     # Data must exist before the model is created
     def createModel(self):
-        self.SA.createCorpusID()
         net = tflearn.input_data(shape=[None, len(self.DATA[0])])
         net = tflearn.fully_connected(net, 32)
         net = tflearn.fully_connected(net, 32)
@@ -406,26 +420,33 @@ class TFTacyt(object):
         iS = 0
         i = 0
         for el in pred:
-            if (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
+            if (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] >
+                                              testSetLabels[i][1]):
                 self.vPrint("Test set #" + str(i+1) +
                             " correctly identified malicious.",
                             self.Util.DEBUG)
                 cM = cM + 1
-            elif (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
+            elif (pred[i][0] > pred[i][1]) and (testSetLabels[i][0] <
+                                                testSetLabels[i][1]):
                 self.vPrint("Test set #" + str(i+1) +
                             " false positively identified malicious.",
                             self.Util.DEBUG)
                 fP = fP + 1
-            elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] < testSetLabels[i][1]):
-                self.vPrint("Test set #" + str(i+1) + " correctly identified safe.",
+            elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] <
+                                                testSetLabels[i][1]):
+                self.vPrint("Test set #" + str(i+1) +
+                            " correctly identified safe.",
                             self.Util.DEBUG)
                 cS = cS + 1
-            elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] > testSetLabels[i][1]):
-                self.vPrint("Test set #" + str(i+1) + " incorrectly marked safe.",
+            elif (pred[i][0] < pred[i][1]) and (testSetLabels[i][0] >
+                                                testSetLabels[i][1]):
+                self.vPrint("Test set #" + str(i+1) +
+                            " incorrectly marked safe.",
                             self.Util.DEBUG)
                 iS = iS + 1
             i = i + 1
-        print("Correctly identified malicious: " + str(cM) + "/" + str(cM + iS))
+        print("Correctly identified malicious: " + str(cM) + "/" +
+              str(cM + iS))
         print("False positives: " + str(fP) + "/" + str(fP+cS))
 
 

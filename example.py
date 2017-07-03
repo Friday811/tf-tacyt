@@ -31,10 +31,13 @@ if RESET:
     TFT.saveDataset()
 else:
     TFT.loadDataset()
+# Run the sentiment analyzer module on the text data and
+# add the predictions to the int/float data
+TFT.runSAModel()
 # Preprocess data (randomize and normalize)
 TFT.preprocess()
 # Remove random testing set
-testSet, testSetLabels = TFT.createTestingSet()
+# testSet, testSetLabels = TFT.createTestingSet()
 # Print for debug.
 TFT.vPrint(TFT.DATA)
 TFT.vPrint(type(TFT.DATA))
@@ -45,7 +48,6 @@ TFT.vPrint(type(TFT.LABELS))
 TFT.vPrint(TFT.LABELS.shape)
 TFT.vPrint(TFT.LABELS.dtype)
 # Build neural network
-TFT.runSAModel()
 TFT.createModel()
 if TRAIN:
     # Start training.
@@ -55,4 +57,4 @@ if TRAIN:
 else:
     TFT.loadModel()
 # Test the models predictions
-TFT.validateModel(testSet, testSetLabels)
+# TFT.validateModel(testSet, testSetLabels)

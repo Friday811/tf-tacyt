@@ -99,7 +99,7 @@ class SentimentAnalyzer(object):
 
     def createModel(self):
         self.Util.vPrint("Creating SA Model.", self.Util.DEBUG)
-        net = tflearn.input_data([None, len(self.data)])
+        net = tflearn.input_data([None, len(self.data[0])])
         net = tflearn.embedding(net,
                                 input_dim=len(self.corpusID) + 1,
                                 output_dim=128)

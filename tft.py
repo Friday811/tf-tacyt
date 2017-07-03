@@ -361,6 +361,11 @@ class TFTacyt(object):
             self.LABELS = np.delete(self.LABELS, j, axis=0)
         return testSet, testSetLabels
 
+    def runSAModel(self):
+        self.SA.preprocessData()
+        self.SA.createModel()
+        self.SA.trainModel()
+
     # Data must exist before the model is created
     def createModel(self):
         self.SA.createCorpusID()
@@ -374,9 +379,6 @@ class TFTacyt(object):
         self.MODEL = model
 
     def trainModel(self):
-        self.SA.preprocessData()
-        self.SA.createModel()
-        self.SA.trainModel()
         self.MODEL.fit(self.DATA,
                        self.LABELS,
                        n_epoch=1000,

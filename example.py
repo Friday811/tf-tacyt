@@ -45,6 +45,7 @@ TFT.vPrint(type(TFT.LABELS))
 TFT.vPrint(TFT.LABELS.shape)
 TFT.vPrint(TFT.LABELS.dtype)
 # Build neural network
+TFT.runSAModel()
 TFT.createModel()
 if TRAIN:
     # Start training.

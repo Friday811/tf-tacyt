@@ -2,6 +2,7 @@
 
 from tft import TFTacyt
 from tftutils import TFTUtils
+import random
 
 APPDATAFILE = 'appdata'
 

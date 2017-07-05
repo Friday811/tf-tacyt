@@ -50,5 +50,9 @@ False positives: 9/251
 ```
 
 ##### To-Do #####
+ - Improve performance for vocab model
+ - Improve separation between int/float and vocab graphs
+ - Benchmark accuracy for vocab combined module
+ - Fix saving/resuming for sentiment analyzer
+ - Arbitrary application testing against model
  - Python package
- - String processing: create vocabulary from strings in description, permissions, emails, etc, and use vocab comparison as factor in model

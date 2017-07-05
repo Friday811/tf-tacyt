@@ -128,7 +128,9 @@ class SentimentAnalyzer(object):
         self.model.fit(self.data,
                        self.labels,
                        show_metric=True,
-                       batch_size=None)
+                       batch_size=None,
+                       n_epoch=100)
+
 
     def saveModel(self, filename='models/lstmmodel.tflearn'):
         if self.model is None:
